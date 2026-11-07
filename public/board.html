@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family Feud – Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #071233; --navy: #0A1A4A; --tile: #123A8C; --tile-bd: #3E66C4; --rev: #1E5BD8; --rev-bd: #8FB2FF;
+    --pts: #0B2A7A; --gold: #F2B705; --muted: #9FB4E8; --red: #D62828; --panel: #0E2466; --panel-bd: #2A3F7A;
+    --display: Anton, Impact, sans-serif; --body: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  body.cursor { cursor: default; }
+  #stage {
+    position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: center center;
+    background: var(--bg); color: #fff; font-family: var(--body); overflow: hidden;
+  }
+  .screen { position: absolute; inset: 0; display: none; }
+  .screen.on { display: flex; }
+  .display { font-family: var(--display); }
+
+  /* ---------- title ---------- */
+  #scr-title { flex-direction: column; align-items: center; justify-content: center; gap: 28px; }
+  .logo { font-family: var(--display); font-size: 150px; line-height: .9; color: var(--gold); letter-spacing: 4px; text-align: center;
+          text-shadow: 0 6px 0 #8a6500, 0 0 60px rgba(242,183,5,.35); }
+  .logo small { display: block; font-size: 60px; color: #fff; text-shadow: none; letter-spacing: 12px; }
+  .title-sub { font-size: 34px; font-weight: 700; color: var(--muted); letter-spacing: 3px; text-align: center; }
+  .join { display: flex; align-items: center; gap: 28px; background: var(--navy); border: 3px solid var(--panel-bd); border-radius: 20px; padding: 18px 26px; }
+  #qr { background: #fff; padding: 8px; border-radius: 10px; width: 136px; height: 136px; }
+  #qr img, #qr canvas { width: 120px !important; height: 120px !important; }
+  .qrbox { background: #fff; border-radius: 10px; padding: 8px; }
+  .qrbox img, .qrbox canvas { display: block; width: 100% !important; height: 100% !important; }
+  #qr-corner { position: absolute; right: 18px; bottom: 16px; z-index: 7; display: none; align-items: center; gap: 12px;
+               background: rgba(10,26,74,.95); border: 2px solid var(--gold); border-radius: 14px; padding: 8px 12px; }
+  #qr-corner.on { display: flex; }
+  #qr-corner .qrbox { width: 92px; height: 92px; padding: 5px; }
+  #qr-corner .t { font-size: 16px; font-weight: 700; letter-spacing: 1px; color: var(--muted); line-height: 1.2; }
+  #qr-corner .t b { display: block; color: #fff; font-size: 18px; }
+  #ov-qr { background: rgba(7,18,51,.96); z-index: 9; }
+  #ov-qr .qrbox { width: 340px; height: 340px; padding: 16px; border-radius: 20px; }
+  #ov-qr .url { font-size: 40px; font-weight: 800; }
+  .join .lbl { font-size: 20px; font-weight: 700; letter-spacing: 3px; color: var(--muted); }
+  .join .url { font-size: 36px; font-weight: 800; }
+
+  /* ---------- main board ---------- */
+  #scr-board { flex-direction: column; gap: 18px; padding: 26px 40px; }
+  .top { display: grid; grid-template-columns: 270px 1fr 270px; gap: 24px; align-items: center; }
+  .team { background: #0B1B4D; border: 3px solid var(--panel-bd); border-radius: 16px; padding: 10px 20px; transition: all .3s; position: relative; }
+  .team.right { text-align: right; }
+  .team .nm { font-size: 22px; font-weight: 700; letter-spacing: 2px; color: var(--muted); text-transform: uppercase;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .team .sc { font-family: var(--display); font-size: 58px; line-height: 1; }
+  .team.active { background: var(--panel); border-color: var(--gold); box-shadow: 0 0 30px rgba(242,183,5,.35); }
+  .team.active .nm { color: var(--gold); }
+  .team .tag { position: absolute; top: -16px; left: 16px; background: var(--gold); color: var(--bg); font-weight: 800; font-size: 16px;
+               letter-spacing: 2px; padding: 2px 10px; border-radius: 6px; display: none; }
+  .team.right .tag { left: auto; right: 16px; }
+  .team.active .tag, .team.buzzed .tag { display: block; }
+  .team.buzzed { border-color: #fff; animation: pulse .6s ease-in-out 4; }
+  .team.buzzed .tag { background: #fff; }
+  @keyframes pulse { 50% { transform: scale(1.06); } }
+  .center { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .rnd { font-size: 22px; font-weight: 700; letter-spacing: 4px; color: var(--muted); }
+  .pot { background: var(--gold); color: var(--bg); border-radius: 14px; padding: 2px 40px; font-family: var(--display); font-size: 62px; line-height: 1.12; min-width: 150px; text-align: center; transition: transform .2s; }
+  .pot.bump { transform: scale(1.15); }
+  .question { text-align: center; font-size: 42px; font-weight: 800; line-height: 1.08; padding: 0 50px; min-height: 92px;
+              display: flex; align-items: center; justify-content: center; }
+  .grid { flex-grow: 1; background: var(--navy); border: 6px solid var(--gold); border-radius: 28px; padding: 20px;
+          display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); grid-auto-flow: column; gap: 14px; }
+  .tile { perspective: 900px; }
+  .flip { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.3,1.4,.5,1); }
+  .flip.on { transform: rotateX(180deg); }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 10px; display: flex; align-items: stretch; overflow: hidden; }
+  .front { background: var(--tile); border: 2px solid var(--tile-bd); align-items: center; justify-content: center; }
+  .front .num { width: 66px; height: 50px; border-radius: 50%; background: #071E5C; border: 2px solid var(--gold); color: var(--gold);
+                display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 30px; }
+  .tile.empty .front { background: #0C2259; border-color: #17306E; }
+  .tile.empty .num { display: none; }
+  .back { transform: rotateX(180deg); background: var(--rev); border: 2px solid var(--rev-bd); }
+  .back .ans { flex-grow: 1; display: flex; align-items: center; padding: 0 22px; font-size: 36px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; line-height: 1; }
+  .back .pts { width: 92px; background: var(--pts); display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 40px; flex-shrink: 0; }
+  .tile.late .back { background: #3B4A72; border-color: #6B7BA8; }
+  .tile.late .back .pts { background: #2A3557; }
+  .foot { height: 48px; display: flex; justify-content: center; align-items: center; gap: 14px; }
+  .foot .lbl { font-size: 22px; font-weight: 700; letter-spacing: 3px; color: var(--muted); }
+  .xbox { width: 46px; height: 46px; border-radius: 8px; border: 2px solid var(--panel-bd); display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 32px; }
+  .xbox.on { background: var(--red); border-color: #FF8A8A; }
+  .banner { background: var(--gold); color: var(--bg); border-radius: 12px; padding: 4px 22px; font-size: 28px; font-weight: 800; letter-spacing: 1px; }
+  .banner.red { background: var(--red); color: #fff; }
+
+  /* ---------- fast money ---------- */
+  #scr-fm { flex-direction: column; gap: 16px; padding: 26px 40px; }
+  .fm-top { display: grid; grid-template-columns: 230px 1fr 230px; align-items: center; gap: 24px; }
+  .box { background: var(--panel); border: 3px solid var(--panel-bd); border-radius: 16px; padding: 8px 18px; }
+  .box .lbl { font-size: 18px; font-weight: 700; letter-spacing: 3px; color: var(--muted); }
+  .box .big { font-family: var(--display); font-size: 54px; line-height: 1; }
+  .box.urgent { border-color: var(--red); }
+  .box.urgent .big { color: #FF8A8A; }
+  .fm-title { font-family: var(--display); font-size: 66px; line-height: 1; letter-spacing: 4px; color: var(--gold); text-align: center; }
+  .fm-sub { font-size: 24px; font-weight: 700; letter-spacing: 3px; color: var(--muted); text-align: center; text-transform: uppercase; }
+  .fm-grid { flex-grow: 1; background: var(--navy); border: 6px solid var(--gold); border-radius: 28px; padding: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+  .fm-col { display: flex; flex-direction: column; gap: 10px; }
+  .fm-col .who { font-size: 22px; font-weight: 700; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+  .fm-col.cur .who { color: var(--gold); }
+  .fm-row { flex: 1; display: flex; gap: 10px; }
+  .fm-row .a, .fm-row .p { border-radius: 10px; border: 2px solid var(--tile-bd); background: var(--tile); display: flex; align-items: center; }
+  .fm-row .a { flex-grow: 1; padding: 0 18px; font-size: 30px; font-weight: 800; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
+  .fm-row .p { width: 84px; justify-content: center; font-family: var(--display); font-size: 34px; background: var(--pts); }
+  .fm-row.filled .a { background: var(--rev); border-color: var(--rev-bd); animation: pop .4s; }
+  .fm-row.filled .p { border-color: var(--rev-bd); }
+  .fm-row.covered .a { background: repeating-linear-gradient(45deg, #123A8C 0 14px, #10347E 14px 28px); }
+  .fm-row.zero .a { background: #3B4A72; border-color: #6B7BA8; }
+  @keyframes pop { from { transform: scale(.9); opacity: .2; } }
+  .fm-total { display: flex; justify-content: center; align-items: center; gap: 16px; }
+  .fm-total .lbl { font-size: 26px; font-weight: 700; letter-spacing: 4px; color: var(--muted); }
+  .fm-total .pot { font-size: 56px; }
+  .fm-total .pot.win { background: #3DDC84; }
+
+  /* ---------- winner ---------- */
+  #scr-winner { flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 48px; }
+  .w-pre { font-size: 32px; font-weight: 700; letter-spacing: 8px; color: var(--muted); }
+  .w-name { font-family: var(--display); font-size: 140px; line-height: .95; color: var(--gold); letter-spacing: 3px; text-align: center; text-transform: uppercase; }
+  .w-scores { display: flex; gap: 32px; }
+  .w-card { background: #0B1B4D; border: 3px solid var(--panel-bd); border-radius: 18px; padding: 14px 40px; display: flex; flex-direction: column; align-items: center; }
+  .w-card .nm { font-size: 24px; font-weight: 800; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+  .w-card .sc { font-family: var(--display); font-size: 74px; line-height: 1; }
+  .w-card.top { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+  .w-card.top .nm { color: var(--bg); }
+  .w-next { font-size: 28px; font-weight: 700; }
+
+  /* ---------- overlays ---------- */
+  .ov { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 30px; z-index: 5; }
+  .ov.on { display: flex; }
+  #ov-strike { background: rgba(7,18,51,.35); }
+  #ov-strike .xs { display: flex; gap: 28px; }
+  #ov-strike .bigx { width: 190px; height: 190px; border-radius: 24px; background: var(--red); border: 6px solid #FF8A8A; display: flex; align-items: center;
+                     justify-content: center; font-family: var(--display); font-size: 160px; line-height: 1; animation: slam .25s ease-out; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  @keyframes slam { from { transform: scale(2.2); opacity: 0; } }
+  #ov-steal, #ov-win, #ov-fm { background: rgba(7,18,51,.93); }
+  .ov .kicker { font-size: 30px; font-weight: 700; letter-spacing: 6px; color: var(--muted); text-transform: uppercase; text-align: center; }
+  .ov .plate { background: var(--gold); color: var(--bg); border-radius: 26px; padding: 18px 70px; display: flex; flex-direction: column; align-items: center; animation: slam .35s ease-out; }
+  .ov .plate .huge { font-family: var(--display); font-size: 110px; line-height: 1; letter-spacing: 4px; text-transform: uppercase; text-align: center; }
+  .ov .plate .line { font-size: 38px; font-weight: 800; }
+  #ov-start { background: var(--bg); z-index: 10; cursor: pointer; }
+  #ov-start .go { background: var(--gold); color: var(--bg); font-family: var(--display); font-size: 44px; letter-spacing: 3px; border-radius: 18px; padding: 16px 50px; }
+  #ov-blank { background: var(--bg); z-index: 8; }
+  body.still *, body.still *::before { animation: none !important; transition: none !important; }
+  #conn { position: absolute; right: 14px; bottom: 10px; font-size: 16px; color: #FF8A8A; z-index: 20; display: none; }
+  #conn.on { display: block; }
+  .confetti { position: absolute; width: 14px; height: 14px; top: -20px; animation: fall linear forwards; z-index: 6; }
+  @keyframes fall { to { transform: translateY(780px) rotate(720deg); } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <section id="scr-title" class="screen on">
+    <div class="logo"><small>FAMILY</small>FEUD</div>
+    <div class="title-sub" id="title-sub">Waiting for the host…</div>
+    <div class="join" id="join">
+      <div id="qr"></div>
+      <div>
+        <div class="lbl" id="host-lbl">HOST: OPEN ON YOUR PHONE</div>
+        <div class="url" id="host-url"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="scr-board" class="screen">
+    <div class="top">
+      <div class="team" id="team0"><div class="tag" id="tag0"></div><div class="nm"></div><div class="sc display">0</div></div>
+      <div class="center"><div class="rnd" id="rnd"></div><div class="pot" id="pot">0</div></div>
+      <div class="team right" id="team1"><div class="tag" id="tag1"></div><div class="nm"></div><div class="sc display">0</div></div>
+    </div>
+    <div class="question" id="question"></div>
+    <div class="grid" id="grid"></div>
+    <div class="foot" id="foot"></div>
+  </section>
+
+  <section id="scr-fm" class="screen">
+    <div class="fm-top">
+      <div class="box" id="fm-timer-box"><div class="lbl">TIME LEFT</div><div class="big" id="fm-timer">0:20</div></div>
+      <div><div class="fm-title">FAST MONEY</div><div class="fm-sub" id="fm-sub"></div></div>
+      <div class="box" style="text-align:right"><div class="lbl">TARGET</div><div class="big">200</div></div>
+    </div>
+    <div class="fm-grid"><div class="fm-col" id="fm-c0"></div><div class="fm-col" id="fm-c1"></div></div>
+    <div class="fm-total"><div class="lbl">TOTAL</div><div class="pot" id="fm-total">0</div></div>
+  </section>
+
+  <section id="scr-winner" class="screen">
+    <div class="w-pre" id="w-pre">AND THE WINNER IS</div>
+    <div class="w-name" id="w-name"></div>
+    <div class="w-scores" id="w-scores"></div>
+    <div class="w-next" id="w-next"></div>
+  </section>
+
+  <div class="ov" id="ov-strike"><div class="xs" id="xs"></div></div>
+  <div class="ov" id="ov-steal">
+    <div class="xs" style="display:flex;gap:22px"><div class="xbox on" style="width:120px;height:120px;font-size:100px">X</div><div class="xbox on" style="width:120px;height:120px;font-size:100px">X</div><div class="xbox on" style="width:120px;height:120px;font-size:100px">X</div></div>
+    <div class="kicker" id="steal-kicker"></div>
+    <div class="plate"><div class="huge">STEAL!</div><div class="line" id="steal-line"></div></div>
+  </div>
+  <div class="ov" id="ov-win"><div class="kicker" id="win-kicker">ROUND WINNER</div><div class="plate"><div class="huge" id="win-name"></div><div class="line" id="win-line"></div></div></div>
+  <div class="ov" id="ov-fm"><div class="kicker" id="fm-kicker"></div><div class="plate"><div class="huge" id="fm-ov-big"></div><div class="line" id="fm-ov-line"></div></div></div>
+  <div class="ov" id="ov-qr"><div class="kicker">Host: scan to open the controls</div><div class="qrbox" id="qr-big"></div><div class="url" id="qr-big-url"></div></div>
+  <div id="qr-corner"><div class="qrbox" id="qr-small"></div><div class="t"><b>Host disconnected</b>Scan to rejoin</div></div>
+  <div class="ov" id="ov-blank"><div class="logo"><small>FAMILY</small>FEUD</div></div>
+  <div class="ov on" id="ov-start"><div class="logo"><small>FAMILY</small>FEUD</div><div class="go">CLICK TO START</div><div class="title-sub">Turns on sound and full screen</div></div>
+  <div id="conn">Reconnecting…</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let V = null, lastSeq = null, clockOffset = 0, gridKey = null, timerBuzzedFor = null;
+// ?still: skip the click-to-start screen and replay the latest event (used for promo stills).
+const STILL = new URLSearchParams(location.search).has('still');
+// ?promo: for the launch video: no click-to-start screen, no local link under the QR code.
+const PROMO = STILL || new URLSearchParams(location.search).has('promo');
+if (PROMO) $('ov-start').classList.remove('on');
+if (STILL) { $('ov-start').classList.remove('on'); document.body.classList.add('still'); lastSeq = -1; }
+
+// ---------- scaling ----------
+function fit() {
+  const s = Math.min(innerWidth / 1280, innerHeight / 720);
+  $('stage').style.transform = `translate(-50%, -50%) scale(${s})`;
+}
+addEventListener('resize', fit); fit();
+let cursorTimer;
+addEventListener('mousemove', () => { document.body.classList.add('cursor'); clearTimeout(cursorTimer); cursorTimer = setTimeout(() => document.body.classList.remove('cursor'), 2000); });
+
+// ---------- sound ----------
+let ac = null;
+function tone(freq, start, dur, type = 'sine', vol = .25, slideTo) {
+  if (!ac) return;
+  const t = ac.currentTime + start, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .015); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + .05);
+}
+const SFX = {
+  ding() { tone(1046, 0, .9, 'sine', .35); tone(1568, 0, .9, 'sine', .15); tone(1318, .12, 1.1, 'sine', .3); tone(2093, .12, 1.0, 'triangle', .08); },
+  strike() { tone(110, 0, .75, 'sawtooth', .28); tone(116, 0, .75, 'square', .18); tone(55, 0, .75, 'square', .15); },
+  flip() { tone(700, 0, .08, 'triangle', .2, 1200); },
+  buzz() { tone(520, 0, .35, 'square', .2); tone(780, 0, .35, 'square', .08); },
+  dup() { tone(300, 0, .18, 'square', .25); tone(300, .25, .18, 'square', .25); },
+  newq() { tone(300, 0, .4, 'triangle', .15, 900); },
+  steal() { [392, 370, 349, 330].forEach((f, i) => tone(f, i * .18, .3, 'sawtooth', .14)); },
+  fanfare() { [523, 659, 784, 1046].forEach((f, i) => tone(f, i * .12, .45, 'triangle', .25)); tone(1046, .5, .9, 'triangle', .25); tone(784, .5, .9, 'sine', .15); },
+  bigFanfare() { [523, 659, 784, 1046, 784, 1046, 1318].forEach((f, i) => tone(f, i * .14, .5, 'triangle', .25)); tone(1046, 1.0, 1.4, 'triangle', .22); tone(1318, 1.0, 1.4, 'sine', .12); },
+  sad() { [392, 370, 349, 311].forEach((f, i) => tone(f, i * .35, i === 3 ? 1.1 : .35, 'triangle', .22)); },
+};
+$('ov-start').addEventListener('click', () => {
+  try { ac = new (window.AudioContext || window.webkitAudioContext)(); SFX.ding(); } catch {}
+  $('ov-start').classList.remove('on');
+  document.documentElement.requestFullscreen?.().catch(() => {});
+});
+
+// ---------- overlays ----------
+const timers = {};
+function flash(id, ms, delay = 0) {
+  if (STILL) { $(id).classList.add('on'); return; } // stills show the final overlay at once
+  clearTimeout(timers[id + 'd']); clearTimeout(timers[id]);
+  timers[id + 'd'] = setTimeout(() => { $(id).classList.add('on'); timers[id] = setTimeout(() => $(id).classList.remove('on'), ms); }, delay);
+}
+function showStrikes(n, delay = 0) {
+  $('xs').innerHTML = Array.from({ length: n }, () => '<div class="bigx">X</div>').join('');
+  flash('ov-strike', 1100, delay);
+}
+function confetti() {
+  const colors = ['#F2B705', '#5B8DEF', '#FF6B6B', '#3DDC84', '#fff'];
+  for (let i = 0; i < 90; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 1280 + 'px';
+    c.style.background = colors[i % colors.length];
+    c.style.animationDuration = 2 + Math.random() * 2.5 + 's';
+    c.style.animationDelay = Math.random() * .8 + 's';
+    if (STILL) c.style.top = Math.random() * 700 + 'px';
+    $('stage').appendChild(c);
+    setTimeout(() => c.remove(), 5500);
+  }
+}
+
+function clearOverlays() {
+  ['ov-strike', 'ov-steal', 'ov-win', 'ov-fm'].forEach(id => {
+    clearTimeout(timers[id + 'd']); clearTimeout(timers[id]); $(id).classList.remove('on');
+  });
+}
+
+function handleEvent(v) {
+  const types = v.event.types;
+  if (types.includes('newq') || types.includes('gamewin')) clearOverlays();
+  const after = types.includes('strike') || types.includes('x1') || types.includes('ding') ? 1100 : 0;
+  for (const t of types) {
+    if (t === 'ding') { SFX.ding(); bump(); }
+    if (t === 'flip' || t === 'control') SFX.flip();
+    if (t === 'buzz') SFX.buzz();
+    if (t === 'fowin') setTimeout(SFX.fanfare, 900);
+    if (t === 'dup') { SFX.dup(); }
+    if (t === 'newq') SFX.newq();
+    if (t === 'strike') { SFX.strike(); showStrikes(Math.min(3, v.strikes)); }
+    if (t === 'x1') { SFX.strike(); showStrikes(1); }
+    if (t === 'steal') {
+      const other = v.teams[1 - v.control];
+      $('steal-kicker').textContent = `${v.teams[v.control].name} struck out`;
+      $('steal-line').textContent = `${other.name} — one guess for ${v.pot} points`;
+      setTimeout(SFX.steal, after); flash('ov-steal', 3500, after);
+    }
+    if (t === 'roundwin' && v.roundWinner !== null) {
+      $('win-kicker').textContent = `Round ${v.round} goes to`;
+      $('win-name').textContent = v.teams[v.roundWinner].name;
+      $('win-line').textContent = `+${v.awarded} points`;
+      setTimeout(SFX.fanfare, after); flash('ov-win', 3200, after);
+    }
+    if (t === 'gamewin') { setTimeout(() => { SFX.bigFanfare(); confetti(); }, 300); }
+    if (t === 'fmwin' || t === 'fmlose') {
+      const win = t === 'fmwin';
+      $('fm-kicker').textContent = `${v.teams[v.fm.team].name} scored ${v.fm.total}`;
+      $('fm-ov-big').textContent = win ? 'WINNERS!' : 'SO CLOSE!';
+      $('fm-ov-line').textContent = win ? 'You beat 200 in Fast Money' : `Just ${200 - v.fm.total} points short of 200`;
+      setTimeout(() => { win ? (SFX.bigFanfare(), confetti()) : SFX.sad(); }, 1200);
+      flash('ov-fm', 5000, 1200);
+    }
+  }
+}
+function bump() { const p = $('pot'); p.classList.add('bump'); setTimeout(() => p.classList.remove('bump'), 220); }
+
+// ---------- render ----------
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id)); }
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }
+
+// Draws a QR code into el once per URL (the library may load after the first render).
+function drawQr(el, url, size) {
+  if (!window.QRCode || el.dataset.url === url) return;
+  el.innerHTML = '';
+  new QRCode(el, { text: url, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+  el.dataset.url = url;
+}
+function renderTitle(v, sub, showJoin) {
+  show('scr-title');
+  $('title-sub').textContent = sub;
+  $('join').style.display = showJoin ? 'flex' : 'none';
+  $('host-url').textContent = PROMO ? 'Scan with your phone to host' : v.hostUrl;
+  if (PROMO) $('host-lbl').textContent = 'HOST THE GAME';
+  drawQr($('qr'), v.hostUrl, 240);
+}
+
+function renderBoard(v) {
+  show('scr-board');
+  [0, 1].forEach(i => {
+    const el = $('team' + i);
+    el.querySelector('.nm').textContent = v.teams[i].name;
+    el.querySelector('.sc').textContent = v.teams[i].score;
+    const active = v.phase === 'round' && v.control === i && (v.stage === 'play' || v.stage === 'steal');
+    const stealing = v.stage === 'steal' && v.control === 1 - i;
+    const foWon = v.stage === 'faceoff' && v.foWinner === i;
+    const buzzed = v.stage === 'faceoff' && v.foAnswering === i;
+    el.classList.toggle('active', active || stealing || foWon);
+    el.classList.toggle('buzzed', buzzed);
+    $('tag' + i).textContent = foWon ? 'WON FACE-OFF' : buzzed ? (v.buzzed === i ? 'BUZZED IN' : 'YOUR TURN') : stealing ? 'STEALING' : 'IN CONTROL';
+    if (active && v.stage === 'steal') el.classList.remove('active');
+  });
+  $('rnd').textContent = `ROUND ${v.round} OF ${v.totalRounds}`;
+  $('pot').textContent = v.phase === 'round' ? v.pot : 0;
+
+  const answers = v.phase === 'round' && v.q ? v.q.answers : [];
+  const key = v.phase === 'round' && v.q ? `${v.round}-${v.q.id}` : `empty-${v.round}`;
+  if (key !== gridKey) {
+    gridKey = key;
+    $('grid').innerHTML = Array.from({ length: 8 }, (_, i) => `
+      <div class="tile ${i < answers.length ? '' : 'empty'}" id="tile${i}">
+        <div class="flip"><div class="face front"><span class="num">${i + 1}</span></div>
+        <div class="face back"><span class="ans"></span><span class="pts"></span></div></div>
+      </div>`).join('');
+  }
+  answers.forEach((a, i) => {
+    const t = $('tile' + i), f = t.querySelector('.flip');
+    if (a) { t.querySelector('.ans').textContent = a.text; t.querySelector('.pts').textContent = a.pts; t.classList.toggle('late', a.how === 'end'); }
+    f.classList.toggle('on', !!a);
+  });
+
+  if (v.phase === 'pick') {
+    $('question').innerHTML = `<span class="display" style="font-size:64px;color:var(--gold);letter-spacing:3px">ROUND ${v.round}</span>`;
+  } else {
+    $('question').textContent = v.q.question;
+  }
+
+  let foot = '';
+  if (v.phase === 'pick') foot = '<div class="lbl">GET READY…</div>';
+  else if (v.stage === 'faceoff') foot = v.foWinner !== null
+    ? `<div class="banner">${esc(v.teams[v.foWinner].name)} win the face-off — play or pass?</div>`
+    : '<div class="banner">FACE-OFF</div>';
+  else if (v.stage === 'play') foot = '<div class="lbl">STRIKES</div>' + [0, 1, 2].map(i => `<div class="xbox ${i < v.strikes ? 'on' : ''}">${i < v.strikes ? 'X' : ''}</div>`).join('');
+  else if (v.stage === 'steal') foot = `<div class="banner red">STEAL! ${esc(v.teams[1 - v.control].name)} — one guess for ${v.pot}</div>`;
+  else if (v.stage === 'done') foot = v.roundWinner !== null
+    ? `<div class="banner">${esc(v.teams[v.roundWinner].name)} win the round · +${v.awarded}</div>`
+    : '<div class="lbl">ROUND OVER</div>';
+  $('foot').innerHTML = foot;
+}
+
+function renderWinner(v) {
+  show('scr-winner');
+  const [a, b] = v.teams, tie = a.score === b.score, w = a.score >= b.score ? 0 : 1;
+  $('w-pre').textContent = tie ? 'WE HAVE A' : 'AND THE WINNER IS';
+  $('w-name').textContent = tie ? "It's a tie!" : v.teams[w].name;
+  $('w-scores').innerHTML = v.teams.map((t, i) => `<div class="w-card ${!tie && i === w ? 'top' : ''}"><div class="nm">${esc(t.name)}</div><div class="sc">${t.score}</div></div>`).join('');
+  $('w-next').textContent = v.fastMoney ? 'Next up: Fast Money' : 'Thanks for playing!';
+}
+
+function renderFm(v) {
+  show('scr-fm');
+  const fm = v.fm;
+  $('fm-sub').textContent = fm.done ? `${v.teams[fm.team].name} · final total` : `${v.teams[fm.team].name} · ${fm.names[fm.player - 1]} is up`;
+  [0, 1].forEach(p => {
+    const col = $('fm-c' + p);
+    col.classList.toggle('cur', fm.player === p + 1 && !fm.done);
+    col.innerHTML = `<div class="who">Player ${p + 1} · ${esc(fm.names[p])}</div>` + fm.ans[p].map(a => {
+      if (!a) return '<div class="fm-row"><div class="a"></div><div class="p"></div></div>';
+      if (a.hidden) return '<div class="fm-row covered"><div class="a"></div><div class="p"></div></div>';
+      return `<div class="fm-row filled ${a.pts ? '' : 'zero'}"><div class="a">${esc(a.text)}</div><div class="p">${a.pts}</div></div>`;
+    }).join('');
+  });
+  $('fm-total').textContent = fm.total;
+  $('fm-total').classList.toggle('win', fm.total >= 200);
+}
+
+function tickTimer() {
+  if (!V || V.phase !== 'fm') return;
+  const t = V.fm.timer;
+  const left = t.endsAt ? Math.max(0, (t.endsAt - (Date.now() + clockOffset)) / 1000) : t.left;
+  const s = Math.ceil(left);
+  $('fm-timer').textContent = `0:${String(s).padStart(2, '0')}`;
+  $('fm-timer-box').classList.toggle('urgent', s <= 5);
+  if (t.endsAt && left <= 0 && timerBuzzedFor !== t.endsAt) { timerBuzzedFor = t.endsAt; SFX.strike(); }
+}
+setInterval(tickTimer, 100);
+
+function render(v) {
+  $('ov-blank').classList.toggle('on', !!v.blank);
+  $('ov-qr').classList.toggle('on', !!v.showQr);
+  if (v.showQr) { drawQr($('qr-big'), v.hostUrl, 400); $('qr-big-url').textContent = v.hostUrl; }
+  const lostHost = v.phase !== 'setup' && v.hosts === 0 && !v.showQr && !PROMO;
+  $('qr-corner').classList.toggle('on', lostHost);
+  if (lostHost) drawQr($('qr-small'), v.hostUrl, 200);
+  if (v.phase === 'setup') renderTitle(v, 'Waiting for the host…', true);
+  else if (v.phase === 'pick' || v.phase === 'round') renderBoard(v);
+  else if (v.phase === 'gameover') renderWinner(v);
+  else if (v.phase === 'fm-setup') renderTitle(v, 'Fast Money is coming up — pick your two players!', false);
+  else if (v.phase === 'fm') renderFm(v);
+}
+
+// ---------- live connection ----------
+function connect() {
+  const es = new EventSource('/events?role=board');
+  es.onopen = () => $('conn').classList.remove('on');
+  es.onmessage = e => {
+    const v = JSON.parse(e.data);
+    clockOffset = v.serverNow - Date.now();
+    V = v;
+    render(v);
+    if (v.event && lastSeq !== null && v.event.seq > lastSeq) handleEvent(v);
+    if (v.event) lastSeq = v.event.seq; else if (lastSeq === null) lastSeq = 0;
+  };
+  es.onerror = () => $('conn').classList.add('on');
+}
+connect();
+</script>
+</body>
+</html>

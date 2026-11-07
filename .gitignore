@@ -1,0 +1,13 @@
+node_modules/
+.DS_Store
+.game-state.json
+questions-original.json
+
+# promo working files (the finished video lives in docs/)
+promo/img/
+promo/plan/
+promo/video/frames/
+promo/video/.demo/
+promo/video/review/
+promo/video/*.mp4
+promo/video/*.jpg

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Family Feud – video stage</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* 1920×1080 stage for the launch video: headline left, live TV board + live phone right. Driven by record.js. */
+  :root { --stage: #071233; --gold: #F2B705; --muted: #9FB4E8; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--stage); }
+  body { position: relative; font-family: Anton, Impact, sans-serif; color: #fff; }
+  body::before { content: ''; position: absolute; inset: 0; background: radial-gradient(1200px 700px at 72% 50%, rgba(27,58,140,.45), transparent 70%); }
+
+  .brand { position: absolute; left: 96px; top: 76px; font-size: 30px; letter-spacing: 4px; color: var(--gold); }
+  .heads { position: absolute; left: 96px; top: 0; bottom: 0; width: 540px; }
+  .head { position: absolute; left: 0; right: 0; top: 50%; margin: 0; font-weight: 400; font-size: 74px; line-height: 1.03;
+          opacity: 0; transform: translateY(calc(-50% + 28px)); transition: opacity .45s ease, transform .55s cubic-bezier(.2,.8,.2,1); }
+  .head.on { opacity: 1; transform: translateY(-50%); }
+  .head em { font-style: normal; color: var(--gold); }
+  .beatbar { position: absolute; left: 96px; bottom: 80px; display: flex; gap: 8px; }
+  .beatbar i { width: 36px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); transition: background .4s; }
+  .beatbar i.on { background: var(--gold); }
+
+  .tv { position: absolute; left: 944px; top: 274px; width: 910px; height: 512px; padding: 10px; background: #000; border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+  .tv iframe { width: 1280px; height: 720px; border: 0; transform: scale(.7109); transform-origin: 0 0; border-radius: 8px; display: block; }
+  .tv .clip { width: 910px; height: 512px; overflow: hidden; border-radius: 8px; }
+
+  .phone { position: absolute; left: 676px; top: 1080px; width: 269px; height: 582px; padding: 13px; background: #000; border-radius: 44px;
+           box-shadow: 0 34px 90px rgba(0,0,0,.65), 0 0 0 2px #1d2540; transition: top .8s cubic-bezier(.2,.9,.2,1); }
+  .phone.in { top: 236px; }
+  .phone .clip { width: 269px; height: 582px; overflow: hidden; border-radius: 32px; position: relative; }
+  .phone iframe { width: 390px; height: 844px; border: 0; transform: scale(.6897); transform-origin: 0 0; display: block; }
+
+  .ring { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; pointer-events: none; z-index: 20;
+          background: rgba(255,255,255,.35); border: 3px solid #fff; animation: tap .55s ease-out forwards; }
+  @keyframes tap { 0% { transform: scale(.4); opacity: 0; } 25% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+
+  .end { position: absolute; inset: 0; background: var(--stage); z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center;
+         gap: 26px; opacity: 0; transition: opacity .6s ease; }
+  .end.on { opacity: 1; }
+  .end .sun { width: 110px; height: 110px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 80px rgba(242,183,5,.5);
+              transform: translateY(40px); opacity: 0; transition: transform 1s cubic-bezier(.2,.8,.2,1) .2s, opacity .8s .2s; }
+  .end.on .sun { transform: none; opacity: 1; }
+  .end .logo { font-size: 210px; line-height: .9; color: var(--gold); text-align: center; letter-spacing: 4px; text-shadow: 0 8px 0 #8a6500; }
+  .end .logo small { display: block; font-size: 84px; color: #fff; letter-spacing: 26px; text-shadow: none; }
+  .end .one { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 46px; }
+  .end .stack { font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 34px; color: var(--muted); letter-spacing: 2px; }
+</style>
+</head>
+<body>
+  <div class="brand">FAMILY FEUD</div>
+  <div class="heads" id="heads">
+    <p class="head">The hit TV game show, <em>recreated for game night with friends.</em></p>
+    <p class="head">Scan, name your teams, <em>play.</em></p>
+    <p class="head">40 party questions, <em>classic to spicy.</em></p>
+    <p class="head">The face-off <em>settles itself.</em></p>
+    <p class="head">Tap an answer. <em>The TV flips it.</em></p>
+    <p class="head">Three strikes, <em>and it's a steal.</em></p>
+    <p class="head">Fast Money, <em>against a real clock.</em></p>
+  </div>
+  <div class="beatbar" id="bar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+  <div class="tv"><div class="clip"><iframe id="tv" src="http://localhost:3200/board?promo"></iframe></div></div>
+  <div class="phone" id="phone"><div class="clip"><iframe id="ph" src="http://localhost:3200/host"></iframe></div></div>
+
+  <div class="end" id="end">
+    <div class="sun"></div>
+    <div class="logo"><small>FAMILY</small>FEUD</div>
+    <div class="one">A two-screen party game for your living room</div>
+    <div class="stack">Node.js · Server-Sent Events · Claude Code</div>
+  </div>
+
+<script>
+  const heads = [...document.querySelectorAll('.head')], bars = [...document.querySelectorAll('#bar i')];
+  window.setBeat = i => {
+    heads.forEach((h, k) => h.classList.toggle('on', k === i));
+    bars.forEach((b, k) => b.classList.toggle('on', k <= i));
+  };
+  window.phoneIn = () => document.getElementById('phone').classList.add('in');
+  window.ring = (x, y) => {
+    const r = document.createElement('div');
+    r.className = 'ring'; r.style.left = x + 'px'; r.style.top = y + 'px';
+    document.body.appendChild(r); setTimeout(() => r.remove(), 700);
+  };
+  window.endCard = () => document.getElementById('end').classList.add('on');
+</script>
+</body>
+</html>

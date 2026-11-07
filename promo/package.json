@@ -1,0 +1,15 @@
+{
+  "name": "family-feud-promo",
+  "version": "1.0.0",
+  "description": "Records the Family Feud launch video from the real app",
+  "scripts": {
+    "record": "node video/record.js"
+  },
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "puppeteer-core": "^23.11.1"
+  },
+  "private": true
+}
